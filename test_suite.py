@@ -3,22 +3,27 @@
 Test Suite — полный набор тестов для проверки P2P mesh связи.
 
 Запуск:
-  # Все тесты
+  # Все тесты (16 тестов)
   python3 test_suite.py --hub HOST:PORT
   
   # Конкретный тест
   python3 test_suite.py --hub HOST:PORT --test tcp
   
 Тесты:
-  tcp      — TCP P2P соединение (HELLO + PING/PONG)
-  relay    — NAT traversal через relay
-  crypto   — Ed25519 подписи + X25519 шифрование
-  wal      — WAL буфер + replay
-  load     — 1000 сообщений подряд
-  gossip   — Gossip chain A→B→C с relay
-  echo     — Эхо-тест через simple_agent
-  uptime   — Непрерывный мониторинг (5 минут)
-  all      — Все тесты последовательно
+  tcp       — TCP P2P соединение (HELLO + PING/PONG)
+  relay     — NAT traversal через relay
+  crypto    — Ed25519 подписи + X25519 шифрование
+  wal       — WAL буфер + replay
+  load      — 1000 сообщений подряд
+  gossip    — Gossip chain A→B→C с relay
+  echo      — Эхо-тест через simple_agent
+  uptime    — Непрерывный мониторинг (5 минут)
+  dht       — Kademlia DHT (peer discovery)
+  reputation— Репутация пиров
+  dedup     — Дедупликация сообщений
+  chrono    — ChronoDB (хронологическая БД)
+  modules   — Импорт всех модулей
+  all       — Все тесты последовательно
 """
 
 import asyncio
@@ -276,6 +281,151 @@ async def test_proof_generation():
         ok("Proof code generated", proof["code"])
 
 
+# ═══ ТЕСТ 7: DHT Kademlia ═══
+async def test_dht():
+    """Проверка импорта и базовой работы Kademlia DHT."""
+    print(f"\n{B}═══ Тест 7: DHT Kademlia ═══{N}")
+    try:
+        from phase0.dht_kademlia import KBucket, node_id_from_pubkey, xor_distance
+        
+        # Проверка node_id
+        nid = node_id_from_pubkey("test-pubkey")
+        assert len(nid) == 20, "NodeId должен быть 20 байт"
+        
+        # Проверка bucket
+        bucket = KBucket(0, 160)
+        added = bucket.add_node(nid, "127.0.0.1:9908", "test-pubkey")
+        assert added, "Node должен добавиться"
+        assert len(bucket._nodes) == 1, "В bucket должен быть 1 узел"
+        
+        # Проверка XOR distance
+        a = node_id_from_pubkey("peer-a")
+        b = node_id_from_pubkey("peer-b")
+        dist = xor_distance(a, b)
+        assert dist > 0, "Разные ключи → разная дистанция"
+        
+        ok("DHT Kademlia", f"node_id={nid.hex()[:8]}..., bucket_size=1, xor_dist={dist}")
+    except ImportError as e:
+        fail("DHT Kademlia", str(e))
+    except Exception as e:
+        fail("DHT Kademlia", str(e))
+
+
+# ═══ ТЕСТ 8: Reputation ═══
+async def test_reputation():
+    """Проверка модуля репутации пиров."""
+    print(f"\n{B}═══ Тест 8: Reputation ═══{N}")
+    try:
+        from core.reputation import ReputationEngine
+        
+        engine = ReputationEngine("test-agent")
+        engine.record_delivery("peer-1", success=True, latency_ms=10)
+        engine.record_delivery("peer-1", success=True, latency_ms=20)
+        engine.record_delivery("peer-2", success=False)
+        
+        score_1 = engine.get_score("peer-1")
+        score_2 = engine.get_score("peer-2")
+        
+        assert score_1 > score_2, "Успешный пир должен иметь выше рейтинг"
+        
+        ok("ReputationEngine", f"peer-1={score_1:.1f}, peer-2={score_2:.1f}")
+    except ImportError as e:
+        fail("Reputation", str(e))
+    except Exception as e:
+        fail("Reputation", str(e))
+
+
+# ═══ ТЕСТ 9: Dedup ═══
+async def test_dedup():
+    """Проверка дедупликации сообщений."""
+    print(f"\n{B}═══ Тест 9: Dedup ═══{N}")
+    try:
+        from coordination.dedup import DedupLog
+        import tempfile, os
+        
+        db_path = os.path.join(tempfile.gettempdir(), f"test_dedup_{int(time.time())}.db")
+        dedup = DedupLog(db_path, ttl_days=7)
+        dedup.open()
+        
+        # Первый раз — пропускаем
+        assert not dedup.is_processed("msg-1"), "Первый раз msg-1 должен быть new"
+        
+        # Маркируем как обработанное
+        dedup.mark_processed("msg-1", "result-1")
+        
+        # Второй раз — дубликат
+        assert dedup.is_processed("msg-1"), "После mark_processed — дубликат"
+        
+        # Другой msg — пропускаем
+        assert not dedup.is_processed("msg-2"), "msg-2 должен быть new"
+        
+        stats = dedup.get_stats()
+        dedup.close()
+        os.unlink(db_path)
+        ok("DedupLog", f"stats={stats}")
+    except ImportError as e:
+        fail("Dedup", str(e))
+    except Exception as e:
+        fail("Dedup", str(e))
+
+
+# ═══ ТЕСТ 10: Chrono DB ═══
+async def test_chrono():
+    """Проверка хронологической БД."""
+    print(f"\n{B}═══ Тест 10: Chrono DB ═══{N}")
+    try:
+        from core.chrono_db import ChronoDB
+        import tempfile, os
+        
+        db_path = os.path.join(tempfile.gettempdir(), f"test_chrono_{int(time.time())}.db")
+        db = ChronoDB(db_path)
+        
+        import json
+        db.save_event("agent-1", "msg-1", "echo", json.dumps({"key": "value"}))
+        db.save_event("agent-1", "msg-2", "alert", json.dumps({"key": "urgent"}))
+        
+        entries = db.get_events(agent_id="agent-1")
+        assert len(entries) >= 2, "Должно быть минимум 2 записи"
+        
+        alerts = db.get_events(agent_id="agent-1", capability="alert")
+        assert len(alerts) >= 1, "Должна быть минимум 1 alert"
+        
+        stats = db.get_stats()
+        db.close()
+        os.unlink(db_path)
+        ok("ChronoDB", f"entries={len(entries)}, alerts={len(alerts)}, stats={stats}")
+    except ImportError as e:
+        fail("ChronoDB", str(e))
+    except Exception as e:
+        fail("ChronoDB", str(e))
+
+
+# ═══ ТЕСТ 11: Modules Import ═══
+async def test_modules():
+    """Проверка импорта всех модулей mesh-agent-lite."""
+    print(f"\n{B}═══ Тест 11: Module Imports ═══{N}")
+    modules = [
+        "phase0.transport", "phase0.identity", "phase0.handshake",
+        "phase0.sig_gate", "phase0.wal", "phase0.dht_kademlia",
+        "phase0.dht", "relay.server", "relay.client",
+        "sdk.agent", "core.chrono_db", "core.reputation",
+        "coordination.dedup", "coordination.consumer_group",
+    ]
+    imported = 0
+    failed_mods = []
+    for mod_name in modules:
+        try:
+            __import__(mod_name)
+            imported += 1
+        except Exception as e:
+            failed_mods.append(f"{mod_name}: {str(e)[:30]}")
+    
+    if imported == len(modules):
+        ok("Module Imports", f"{imported}/{len(modules)} модулей импортировано")
+    else:
+        fail("Module Imports", f"{imported}/{len(modules)} — ошибки: {'; '.join(failed_mods)}")
+
+
 # ═══ Main ═══
 async def run_all_tests(hub_host: str, hub_port: int, agent_port: int, skip_uptime: bool = False):
     """Запуск всех тестов."""
@@ -306,6 +456,21 @@ async def run_all_tests(hub_host: str, hub_port: int, agent_port: int, skip_upti
     if not skip_uptime:
         await test_uptime(agent_port, duration=30)
 
+    # 7. DHT Kademlia
+    await test_dht()
+
+    # 8. Reputation
+    await test_reputation()
+
+    # 9. Dedup
+    await test_dedup()
+
+    # 10. ChronoDB
+    await test_chrono()
+
+    # 11. Module Imports
+    await test_modules()
+
     # Результаты
     print(f"\n{Y}══════════════════════════════════════{N}")
     total = passed + failed
@@ -328,7 +493,7 @@ def main():
     parser = argparse.ArgumentParser(description="Mesh Test Suite")
     parser.add_argument("--hub", default="127.0.0.1:8443", help="Адрес хаба: host:port")
     parser.add_argument("--agent-port", type=int, default=9908, help="Порт агента для тестов")
-    parser.add_argument("--test", choices=["tcp", "echo", "load", "uptime", "crypto", "proof", "all"],
+    parser.add_argument("--test", choices=["tcp", "echo", "load", "uptime", "crypto", "proof", "dht", "reputation", "dedup", "chrono", "modules", "all"],
                         default="all", help="Конкретный тест")
     parser.add_argument("--skip-uptime", action="store_true", help="Пропустить uptime тест")
 
