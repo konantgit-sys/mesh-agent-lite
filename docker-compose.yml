@@ -1,0 +1,78 @@
+# Mesh Agent Lite — Docker Compose
+# Проверка P2P связи между двумя машинами
+#
+# Использование:
+#   docker-compose up -d           # relay + simple_agent
+#   docker-compose run test        # тесты (локально)
+#   docker-compose run agent --peer HOST:PORT   # подключение к пиру
+
+services:
+  # === Relay (NAT traversal) ===
+  relay:
+    build: .
+    command: python3 -m relay.server --port 8443 --host 0.0.0.0
+    ports:
+      - "${RELAY_PORT:-8443}:8443"
+    environment:
+      - RELAY_MAX_MSGS_PER_SEC=${RELAY_MAX_MSGS_PER_SEC:-10}
+      - RELAY_MAX_CONN_PER_IP=${RELAY_MAX_CONN_PER_IP:-5}
+    volumes:
+      - relay-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8443"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # === Simple Agent ===
+  agent:
+    build: .
+    command: >
+      python3 simple_agent.py
+      --name ${AGENT_NAME:-mesh-node}
+      --port ${AGENT_PORT:-9908}
+      ${AGENT_PEER:+--peer ${AGENT_PEER}}
+    ports:
+      - "${AGENT_PORT:-9908}:9908"
+    depends_on:
+      relay:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # === Test Suite ===
+  test:
+    build: .
+    command: >
+      python3 test_suite.py
+      --hub ${HUB_HOST:-relay}:${HUB_PORT:-8443}
+      --agent-port ${AGENT_PORT:-9908}
+    depends_on:
+      relay:
+        condition: service_healthy
+
+  # === Mesh Agent (классический) ===
+  mesh-agent:
+    build: .
+    command: >
+      python3 mesh_agent.py
+      --name ${AGENT_NAME:-mesh-node}
+      --port ${MESH_PORT:-9908}
+      ${AGENT_PEER:+--peer ${AGENT_PEER}}
+    ports:
+      - "${MESH_PORT:-9908}:9908"
+    restart: unless-stopped
+
+  # === Mesh Ping (однократный тест) ===
+  ping:
+    build: .
+    command: python3 mesh_ping.py --peer ${PING_PEER:-relay:8443}
+    depends_on:
+      relay:
+        condition: service_healthy
+    profiles:
+      - ping
+
+volumes:
+  relay-data:
