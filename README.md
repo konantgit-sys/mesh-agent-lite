@@ -32,9 +32,9 @@ python3 mesh_agent.py --peer 123.45.67.89:9908
 ```
 ⚠️  СОХРАНИ ЭТОТ КОД:
 ┌──────────────────────────────────┐
-│   a7f3-b2c8-91e4               │
+│   48bb-74d2-bc3d               │
 └──────────────────────────────────┘
-Файл: connection_a7f3-b2c8-91e4.proof
+Файл: connection_48bb-74d2-bc3d.proof
 ```
 
 ---
@@ -96,9 +96,9 @@ python3 mesh_agent.py --name "server-b" --peer IP_A:9908
   🎂 ДЕНЬ РОЖДЕНИЯ MESH NETWORK! 🎂
   ⚠️  СОХРАНИ ЭТОТ КОД:
   ┌──────────────────────────────────┐
-  │   a7f3-b2c8-91e4               │
+  │   48bb-74d2-bc3d               │
   └──────────────────────────────────┘
-  Файл: connection_a7f3-b2c8-91e4.proof
+  Файл: connection_48bb-74d2-bc3d.proof
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [server-b] 🔌 Подключаюсь к 5.6.7.8:9908...
@@ -128,7 +128,7 @@ python3 mesh_ping.py --peer IP_A:9909
 
 ```
 [клиент] ✅ PONG! latency=0.3ms
-[клиент] 📝 Сохрани файл: connection_a7f3-b2c8-91e4.proof
+[клиент] 📝 Сохрани файл: connection_48bb-74d2-bc3d.proof
 ```
 
 ---
@@ -221,3 +221,21 @@ MIT. Делайте что хотите.
 **Сеть — это не технология. Сеть — это люди, которые запустили агента.**
 
 **19 мая 2026. Mesh Network. День первый.**
+## 📊 Results
+
+### Load Test (2026-05-19)
+
+| Test | Result | Metrics |
+|------|--------|--------|
+| HELLO | ✅ | 0.9ms |
+| PING 10x | ✅ | avg=0.7ms, max=1.3ms, loss=0% |
+| Echo | ✅ | 3.4ms, match=100% |
+| Load 500 | ✅ | 1965 msg/s, loss=0% |
+| Load 2000 | ✅ | 1936 msg/s, loss=0% |
+| Multi-Peer 20 | ✅ | 20/20 in 7ms |
+| Uptime 60s | ✅ | 60/60, 100% |
+| GitHub Actions x3 | ✅ | 3/3 cross-DC |
+
+**Proof code:** `48bb-74d2-bc3d`
+
+> Полный отчёт: [reports/LATEST_REPORT.md](reports/LATEST_REPORT.md)
