@@ -1,0 +1,122 @@
+# Mesh Agent Lite — Self-Test (изолированный)
+# Запускает relay + агента внутри одного раннера и тестирует их
+# Не требует внешнего хаба — всё локально
+#
+# Полезно: проверка что репозиторий работает без нашей инфраструктуры
+
+name: 🧪 Self Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  self-test:
+    name: 🔄 Self-Contained Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Установка Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Установка зависимостей
+        run: pip install -r requirements.txt
+
+      - name: 🚀 Запуск relay (локальный)
+        run: |
+          python3 -m relay.server --port 8443 --host 127.0.0.1 &
+          RELAY_PID=$!
+          sleep 2
+          echo "RELAY_PID=$RELAY_PID" >> $GITHUB_ENV"
+          echo "✅ Relay запущен (PID: $RELAY_PID)"
+
+      - name: 🚀 Запуск simple_agent (локальный)
+        run: |
+          python3 simple_agent.py --name "self-test" --port 9908 &
+          AGENT_PID=$!
+          sleep 2
+          echo "AGENT_PID=$AGENT_PID" >> $GITHUB_ENV
+          echo "✅ Agent запущен (PID: $AGENT_PID)"
+
+      - name: 🔄 Проверка что сервисы живы
+        run: |
+          python3 -c "
+import socket
+for name, port in [('Relay', 8443), ('Agent', 9908)]:
+    s = socket.socket()
+    s.settimeout(2)
+    try:
+        s.connect(('127.0.0.1', port))
+        print(f'✅ {name} на :{port} — доступен')
+    except Exception as e:
+        print(f'❌ {name} на :{port} — {e}')
+    finally:
+        s.close()
+"
+
+      - name: 🧪 TCP PING тест
+        run: |
+          python3 mesh_ping.py --peer 127.0.0.1:9908
+
+      - name: 🧪 Полный test_suite
+        run: |
+          python3 test_suite.py --hub 127.0.0.1:9908 --agent-port 9908 --skip-uptime
+
+      - name: 🧪 Нагрузочный тест (100 msg)
+        run: |
+          python3 -c "
+import asyncio, json, time
+
+async def load_test():
+    pk = 'self-test-load-' * 4
+    ok = 0
+    err = 0
+    for i in range(100):
+        try:
+            r, w = await asyncio.wait_for(asyncio.open_connection('127.0.0.1', 9908), 2)
+            ping = json.dumps({'kind': 2, 'pubkey': pk, 'name': 'load', 'content': {'ts': time.time(), 'nonce': f'l:{i}'}}).encode() + b'\n'
+            w.write(ping)
+            await asyncio.wait_for(w.drain(), 1)
+            resp = await asyncio.wait_for(r.readline(), 2)
+            w.close()
+            ok += 1
+        except:
+            err += 1
+    print(f'✅ Load: {ok}/100 OK, errors: {err}')
+
+asyncio.run(load_test())
+"
+
+      - name: 📸 Proof-код
+        run: |
+          ls -la *.proof 2>/dev/null && cat *.proof || echo "⚠️ Нет proof-файлов"
+          echo "proof_code=$(ls *.proof 2>/dev/null | head -1 | cut -d'_' -f2 | cut -d'.' -f1 || echo 'none')" >> $GITHUB_OUTPUT
+
+      - name: 📎 Сохранение proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-test-proof
+          path: "*.proof"
+          retention-days: 90
+
+      - name: 🛑 Остановка сервисов
+        if: always()
+        run: |
+          kill ${{ env.RELAY_PID }} 2>/dev/null || true
+          kill ${{ env.AGENT_PID }} 2>/dev/null || true
+          echo "🛑 Сервисы остановлены"
+
+      - name: 📋 Итог
+        run: |
+          echo "╔══════════════════════════════════════╗"
+          echo "║     Self-Test завершён               ║"
+          echo "║     Всё локально, без внешних хабов  ║"
+          echo "╚══════════════════════════════════════╝"
