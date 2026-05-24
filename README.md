@@ -6,129 +6,87 @@
  | |\/| | / _ \  |  __  | | |    / _` | / __|
  | |  | || (_) | | |  | | | |___| (_| | \__ \
  |_|  |_| \___/  |_|  |_| |______\__,_| |___/
+
+ P2P mesh in one command. No servers. No cloud. No signup.
 ```
 
-**P2P mesh-сеть в одну команду.** Без серверов. Без облаков. Без регистрации.
+# Mesh Agent Lite
+
+**Zero-dependency P2P mesh agent.** One file. One command. Connected.
 
 ```bash
-python3 mesh_agent.py --peer 123.45.67.89:9908
+# Server A
+python3 agent_light.py --name "node-a"
+
+# Server B — connects to A
+python3 agent_light.py --name "node-b" --peer 192.168.1.10:9908
 ```
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](#)
-[![No deps](https://img.shields.io/badge/зависимости-0-orange)](#)
+[![No deps](https://img.shields.io/badge/deps-0-orange)](#)
 [![TCP only](https://img.shields.io/badge/protocol-TCP-lightgrey)](#)
 
 ---
 
-## 🎂 ДЕНЬ РОЖДЕНИЯ MESH NETWORK 🎂
+## Quick Start (10 seconds)
 
-**19 мая 2026 года** — день, когда mesh-сеть пошла в люди.
-
-Каждый, кто запустит агента и подключится к другому пиру, получает **уникальный proof-код**. Файл `connection_XXXX-XXXX-XXXX.proof` создаётся автоматически.
-
-**Зачем?** Когда появится платформа — каждый код активирует **NFT первого подключения**.
-
-```
-⚠️  СОХРАНИ ЭТОТ КОД:
-┌──────────────────────────────────┐
-│   48bb-74d2-bc3d               │
-└──────────────────────────────────┘
-Файл: connection_48bb-74d2-bc3d.proof
+### 1. Download
+```bash
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/agent_light.py
 ```
 
----
+### 2. Run on Server A
+```bash
+python3 agent_light.py --name "my-node"
+```
+Agent starts listening on port `9908` (TCP).
 
-## Как подтвердить что ты запустил
+### 3. Run on Server B — connects to A
+```bash
+python3 agent_light.py --name "peer-node" --peer 192.168.1.10:9908
+```
 
-1. Запустил агента → получил код и файл `connection_XXXX-XXXX-XXXX.proof`
-2. Открой **Issue** в этом репозитории (зелёная кнопка "New issue")
-3. Заголовок: `Подключение: XXXX-XXXX-XXXX`
-4. В тело вставь содержимое proof-файла
-5. Всё. Ты в реестре.
-
-GitHub Issues — это публичный блокчейн-лайт. Каждый Issue привязан к GitHub-аккаунту, не удаляется, не редактируется. Идеальный реестр первых подключений.
-
----
-
-## Что это?
-
-Лёгкий P2P-агент, который поднимает mesh-сеть между серверами за 5 секунд.
-
-- **Один агент** — просто TCP-сервер
-- **Два агента** — mesh с автоматической маршрутизацией
-- **Три и больше** — распределённая сеть с quality scoring
-
-Агенты сами находят друг друга, меряют latency, выбирают лучший канал. Всё в реальном времени. Всё P2P.
+**Done.** Agents exchange HELLO, measure ping, generate proof codes.
 
 ---
 
-## Быстрый старт за 10 секунд
+## What You Get
+
+### 🔐 Proof Code
+On first contact, each agent generates a unique proof:
+```
+connection_a7f3-b2c8-91e4.proof
+```
+This code proves you ran a mesh agent. Save it — it activates your spot when the platform launches.
+
+### 📡 Registration
+Agents auto-register with the mesh network. Your proof code is logged on the network dashboard.
+
+### 📊 Status Every 60s
+```
+[12:34:56] ❤️  uptime=300s peers=3 avg_lat=12.3ms
+```
+
+---
+
+## Commands
 
 ```bash
-# 1. Скачать
-wget -O mesh_agent.py https://github.com/USERNAME/mesh-p2p-agent/raw/main/mesh_agent.py
+# Basic — listen only
+python3 agent_light.py --name "node-a"
 
-# 2. Запустить (на сервере A)
-python3 mesh_agent.py --name "server-a"
+# Connect to a peer
+python3 agent_light.py --name "node-b" --peer 1.2.3.4:9908
 
-# 3. Запустить (на сервере B) — подключится к A
-python3 mesh_agent.py --name "server-b" --peer IP_A:9908
-```
+# Connect to multiple peers
+python3 agent_light.py --name "node-c" --peer 1.2.3.4:9908 --peer 5.6.7.8:9908
 
-Готово. Агенты обменялись HELLO, меряют пинг, показали коды.
+# Quick test (auto-exit after connect + ping)
+python3 agent_light.py --test --peer 1.2.3.4:9908
 
----
-
-## Что вы увидите
-
-```
-╔═══ Mesh Agent ═══╗
-║ Имя:     server-b
-║ Pubkey:  f8c9eabfd28c4375...
-║ Порт:    9908
-║ Пиры:    1
-╚════════════════════════╝
-
-[server-b] 📡 Слушаю на :9908 (TCP)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🎂 ДЕНЬ РОЖДЕНИЯ MESH NETWORK! 🎂
-  ⚠️  СОХРАНИ ЭТОТ КОД:
-  ┌──────────────────────────────────┐
-  │   48bb-74d2-bc3d               │
-  └──────────────────────────────────┘
-  Файл: connection_48bb-74d2-bc3d.proof
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-[server-b] 🔌 Подключаюсь к 5.6.7.8:9908...
-[server-b] 🤝 Новый пир: server-a (5.6.7.8:9908) latency=12.3ms
-[server-b] 🔗 Пир server-a → код d4e5-f6a7-b8c9
-
---- через 30 секунд ---
-
-[server-b] ❤️ uptime=5м peers=1 msgs=12 errs=0 | server-a lat=12.3ms score=1.00
-```
-
----
-
-## Быстрый тест контакта
-
-Для быстрой проверки «достукивается ли сервер до сервера»:
-
-```bash
-# На сервере A:
-python3 mesh_ping.py --server
-
-# На сервере B:
-python3 mesh_ping.py --peer IP_A:9909
-```
-
-Тоже генерирует proof-код. Тоже считаем.
-
-```
-[клиент] ✅ PONG! latency=0.3ms
-[клиент] 📝 Сохрани файл: connection_48bb-74d2-bc3d.proof
+# Custom port
+python3 agent_light.py --port 7777 --peer 1.2.3.4:7777
 ```
 
 ---
@@ -136,106 +94,87 @@ python3 mesh_ping.py --peer IP_A:9909
 ## Docker
 
 ```bash
+# Build
 docker build -t mesh-agent .
-docker run --rm -p 9908:9908 mesh-agent --name "my-container"
-# С пиром:
+
+# Run
+docker run --rm -p 9908:9908 mesh-agent --name "docker-node"
+
+# With peer
 docker run --rm -p 9908:9908 mesh-agent --name "node-2" --peer 1.2.3.4:9908
 ```
 
----
-
-## Команды
-
-```bash
-# Базовый запуск
-python3 mesh_agent.py --name "my-node"
-
-# Подключение к нескольким пирам сразу
-python3 mesh_agent.py --peer 1.2.3.4:9908 --peer 5.6.7.8:9908
-
-# Режим теста (автовыключение через 60 мин)
-python3 mesh_agent.py --test --peer 1.2.3.4:9908
-
-# Нестандартный порт
-python3 mesh_agent.py --port 7777 --peer 1.2.3.4:7777
-```
+Built on `python:3.11-slim`. Zero Python dependencies.
 
 ---
 
-## Как это работает
+## How It Works
 
 ```
 ┌──────────────┐         TCP          ┌──────────────┐
 │  Mesh Agent  │◄────────────────────►│  Mesh Agent  │
-│  :9908       │      gossip          │  :9908       │
+│  :9908       │      HELLO/PING      │  :9908       │
 └──────────────┘                      └──────────────┘
-       ▲                                      ▲
-       │                TCP                    │
-       └──────────────────────────────────────┘
-                      ┌──────────────┐
-                      │  Mesh Agent  │
-                      │  :9908       │
-                      └──────────────┘
 ```
 
-Каждый агент = сервер + клиент. Сообщения ходят напрямую P2P. Никакого хаба.
+Agents communicate directly over **TCP**. No hub, no cloud, no relay.
 
-**Типы сообщений:**
-
-| Тип | Зачем |
-|-----|-------|
-| 🤝 HELLO | Подключение нового пира + обмен proof-кодами |
-| 📡 PING / PONG | Проверка связи + замер latency |
-| 💬 GOSSIP | Пользовательские данные |
-| 👋 GOODBYE | Отключение |
-
-**Quality scoring:** каждый пир получает оценку канала (0.0–1.0). Падает при ошибках, растёт при успехах.
+**Message types:**
+| Type | Purpose |
+|------|---------|
+| 🤝 HELLO | Peer discovery + proof exchange |
+| 📡 PING / PONG | Latency measurement |
+| 💬 GOSSIP | Custom data relay |
+| 👋 GOODBYE | Disconnect notification |
 
 ---
 
-## Файлы в репозитории
-
-| Файл | Строк | Назначение |
-|------|-------|-----------|
-| `mesh_agent.py` | 381 | Полноценный P2P агент с mesh, HELLO, PING, GOSSIP |
-| `mesh_ping.py` | 123 | Быстрый тестер: ping → pong, минимум кода |
-| `Dockerfile` | 10 | Контейнеризация mesh_agent.py |
-| `LICENSE` | 21 | MIT |
-| `.gitignore` | 4 | Игнорируем временные файлы |
-
----
-
-## Требования
+## Requirements
 
 - Python 3.8+
-- Ничего больше
+- Nothing else
+
+---
+
+## Proof of First Contact
+
+Every first connection generates a `.proof` file with a unique code:
+
+```
+═══════════════════════════════════════════
+  MESH AGENT — PROOF OF FIRST CONTACT
+═══════════════════════════════════════════
+Code: a7f3-b2c8-91e4
+File: connection_a7f3-b2c8-91e4.proof
+Time: 2026-05-24 17:00:00 UTC
+───────────────────────────────────────────
+This code proves you ran a mesh agent.
+Keep it. It activates your NFT on launch.
+───────────────────────────────────────────
+Keep your code safe. Activation coming soon.
+═══════════════════════════════════════════
+```
+
+**Save this file.** When the platform launches, each activation code claims your spot in the network.
+
+---
+
+## Files
+
+| File | Lines | What |
+|------|-------|------|
+| `agent_light.py` | 430 | Main agent — one file, zero deps |
+| `Dockerfile` | 16 | Container image |
+| `README.md` | — | This file |
 
 ---
 
 ## License
 
-MIT. Делайте что хотите.
+MIT. Do whatever you want.
 
 ---
 
-**Сеть — это не технология. Сеть — это люди, которые запустили агента.**
+**The network is not the technology. The network is the people who ran the agent.**
 
-**19 мая 2026. Mesh Network. День первый.**
-## 📊 Results
-
-### Load Test (2026-05-19)
-
-| Test | Result | Metrics |
-|------|--------|--------|
-| HELLO | ✅ | 0.9ms |
-| PING 10x | ✅ | avg=0.7ms, max=1.3ms, loss=0% |
-| Echo | ✅ | 3.4ms, match=100% |
-| Load 500 | ✅ | 1965 msg/s, loss=0% |
-| Load 2000 | ✅ | 1936 msg/s, loss=0% |
-| Multi-Peer 20 | ✅ | 20/20 in 7ms |
-| Uptime 60s | ✅ | 60/60, 100% |
-| GitHub Actions x3 | ✅ | 3/3 cross-DC |
-
-**Proof code:** `48bb-74d2-bc3d`
-
-> Полный отчёт: [reports/LATEST_REPORT.md](reports/LATEST_REPORT.md)
+**May 2026. Mesh Network. Day one.**

@@ -1,144 +1,118 @@
-# Mesh Agent Lite — Инструкция по запуску
+# Mesh Agent Lite — Instructions
 
-## Быстрый старт (2 машины)
+## Quick Start (two machines)
 
-### Машина 1 (наша сторона) — уже запущена
-
-```bash
-# Relay на 8443
-docker-compose up -d relay
-
-# Simple Agent на 9908
-docker-compose run -d agent --name "hub" --port 9908
-```
-
-### Машина 2 (твоя сторона)
+### Machine A — first node
 
 ```bash
-# 1. Скачать репозиторий
-git clone https://github.com/konantgit-sys/mesh-agent-lite.git
-cd mesh-agent-lite
-
-# 2. Собрать Docker образ
-docker build -t mesh-agent-lite .
-
-# 3. Проверить связь с хабом (одна команда)
-docker run --rm mesh-agent-lite python3 mesh_ping.py --peer HUB_IP:9908
-
-# 4. Запустить агента и подключиться к хабу
-docker run --rm -p 9908:9908 mesh-agent-lite \
-  python3 simple_agent.py --name "remote" --peer HUB_IP:9908
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/agent_light.py
+python3 agent_light.py --name "node-a"
 ```
 
-## Тесты
+Agent starts on port `9908` and waits for peers.
 
-### Полный набор (на второй машине, после сборки)
+### Machine B — connect to A
 
 ```bash
-# Все тесты разом (2-3 минуты)
-docker run --rm mesh-agent-lite \
-  python3 test_suite.py --hub HUB_IP:9908
-
-# Только TCP + Echo (быстро)
-docker run --rm mesh-agent-lite \
-  python3 test_suite.py --hub HUB_IP:9908 --skip-uptime
-
-# Только нагрузочный тест
-docker run --rm mesh-agent-lite \
-  python3 test_suite.py --hub HUB_IP:9908 --test load
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/agent_light.py
+python3 agent_light.py --name "node-b" --peer IP_OF_A:9908
 ```
 
-### Без Docker
+Replace `IP_OF_A` with the actual IP or hostname of Machine A.
+
+### What happens
+
+1. Agents exchange HELLO → establish P2P connection
+2. Each generates a unique proof code → saved as `connection_XXXX-XXXX-XXXX.proof`
+3. Both register with the mesh network automatically
+4. PING runs every 30s → latency displayed
+5. Status summary every 60s
+
+---
+
+## Network setup
+
+### Same local network (LAN)
+
+Use private IPs:
+```bash
+# Machine A: 192.168.1.10
+python3 agent_light.py --name "node-a"
+
+# Machine B: 192.168.1.11
+python3 agent_light.py --name "node-b" --peer 192.168.1.10:9908
+```
+
+### Over the internet
+
+Machine A must have port `9908` open (or forwarded in router):
+```bash
+# Machine A with public IP 1.2.3.4
+python3 agent_light.py --name "node-a"
+
+# Machine B from anywhere
+python3 agent_light.py --name "node-b" --peer 1.2.3.4:9908
+```
+
+**Firewall:** ensure TCP port 9908 is open on Machine A.
+
+---
+
+## Test mode
+
+Quick connectivity check (auto-exit after HELLO + PING):
 
 ```bash
-# 1. Установить зависимости
-pip install -r requirements.txt
+# Machine A
+python3 agent_light.py --name "server-a"
 
-# 2. Запустить простой тест
-python3 mesh_ping.py --peer HUB_IP:9908
-
-# 3. Запустить агента
-python3 simple_agent.py --name "remote" --peer HUB_IP:9908 --test
+# Machine B — test
+python3 agent_light.py --test --peer IP_OF_A:9908
 ```
 
-## Docker Compose (полный стек на одной машине)
+Expected output:
+```
+✅ OK   (connection established)
+✅ 0.4ms  (PING latency)
+```
+
+---
+
+## Proof codes
+
+On first connection, a `.proof` file appears in the current directory:
+
+```
+connection_a7f3-b2c8-91e4.proof
+```
+
+**Save this file.** It proves you ran an agent. When the platform launches, each code activates your spot in the mesh network.
+
+---
+
+## Troubleshooting
+
+| Problem | Likely cause | Fix |
+|---------|-------------|-----|
+| `Connection refused` | Wrong IP or port | Check IP + port 9908 open |
+| `timed out` | Firewall blocking | Open TCP 9908 inbound |
+| Agent starts but no peers | No `--peer` flag | Add `--peer HOST:PORT` |
+| Proof not saved | Write permission | Run in writable directory |
+
+---
+
+## Docker
 
 ```bash
-# Запуск relay + agent
-docker-compose up -d
+# Build
+docker build -t mesh-agent .
 
-# Relay на :8443, агент на :9908
-docker-compose ps
+# Run
+docker run --rm -p 9908:9908 mesh-agent --name "docker-node"
 
-# Тесты
-docker-compose run test
-
-# Остановка
-docker-compose down
+# With peer
+docker run --rm -p 9908:9908 mesh-agent \
+  --name "remote-node" --peer 1.2.3.4:9908
 ```
 
-## Что проверяет каждый тест
-
-| Тест | Команда | Что проверяет |
-|------|---------|---------------|
-| TCP | `mesh_ping.py --peer HOST:PORT` | Базовая TCP связность |
-| HELLO | `simple_agent.py --peer HOST:PORT` | Регистрация пира |
-| PING/PONG | `test_suite.py --test tcp` | Задержка канала |
-| Echo | `test_suite.py --test echo` | Двусторонняя передача |
-| Relay | `docker-compose up -d relay` | NAT traversal |
-| Load | `test_suite.py --test load` | Пропускная способность |
-| Uptime | `test_suite.py --test uptime` | Стабильность |
-| Proof | `test_suite.py --test proof` | Генерация NFT-кодов |
-
-## Proof-коды (NFT будущего)
-
-Каждый запуск `simple_agent.py` или `mesh_agent.py` генерирует уникальный код.
-
-```
-⚠️  СОХРАНИ ЭТОТ КОД:
-┌──────────────────────────────────┐
-│   a7f3-b2c8-91e4               │
-└──────────────────────────────────┘
-Файл: connection_a7f3-b2c8-91e4.proof
-```
-
-**Что делать с кодом:**
-1. Файл `.proof` создаётся в текущей директории
-2. Сохрани его — он подтверждает что ты запустил агента
-3. Когда появится платформа — каждый код активирует NFT первого подключения
-
-## Параметры окружения
-
-| Переменная | По умолчанию | Описание |
-|------------|-------------|----------|
-| `RELAY_PORT` | 8443 | Порт relay |
-| `AGENT_PORT` | 9908 | Порт агента |
-| `AGENT_NAME` | mesh-node | Имя агента |
-| `AGENT_PEER` | — | Адрес пира (host:port) |
-
-## Связь с хабом
-
-Хаб работает на адресе: **155.212.133.195:9908**
-
-```bash
-# Быстрая проверка
-python3 mesh_ping.py --peer 155.212.133.195:9908
-
-# Полноценное подключение
-python3 simple_agent.py --name "test-node" --peer 155.212.133.195:9908 --test
-```
-
-## Архитектура
-
-```
-Машина 1 (наша)          Машина 2 (твоя)
-┌──────────────────┐    ┌──────────────────┐
-│  relay (:8443)   │◄──►│  simple_agent    │
-│  simple_agent    │    │  --peer 1.2.3.4  │
-│  (:9908)         │    │  (:9908)         │
-└──────────────────┘    └──────────────────┘
-        │                      │
-        └────── TCP P2P ───────┘
-```
-
-Все сообщения — TCP поверх JSON. Без центрального сервера, без облаков, без регистрации.
+No additional ports needed. Single container, single file.

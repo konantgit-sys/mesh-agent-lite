@@ -1,126 +1,35 @@
 # Mesh Agent Lite — GitHub Actions Test
-# Запускает тесты P2P mesh связи из дата-центра GitHub
-# против нашего хаба на 155.212.133.195
-#
-# Запуск: вручную (workflow_dispatch) или автоматически по push
-# Результат: логи + proof-код как artifact
+# Runs P2P connectivity tests from GitHub datacenters.
+# Manual trigger only (workflow_dispatch).
 
 name: 🔗 Mesh Test
 
 on:
   workflow_dispatch:
     inputs:
-      hub_host:
-        description: 'Адрес хаба для теста'
-        required: false
-        default: '155.212.133.195'
-      hub_port:
-        description: 'Порт хаба'
-        required: false
-        default: '9908'
+      peer_host:
+        description: 'Peer address (host:port)'
+        required: true
+        default: '1.2.3.4:9908'
       test_type:
-        description: 'Тип теста'
+        description: 'Test type'
         type: choice
         options:
-          - full
           - quick
-          - load
-        default: 'full'
-  push:
-    branches: [ main ]
-  schedule:
-    # Раз в день — мониторинг что хаб жив
-    - cron: '0 6 * * *'
+          - full
+        default: 'quick'
 
 jobs:
-  test-mesh:
-    name: 🔗 Mesh Connection Test
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🐍 Установка Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
-      - name: 📦 Установка зависимостей
+      - name: Test connectivity
         run: |
-          pip install -r requirements.txt
-
-      - name: 📍 Информация о раннере
-        run: |
-          echo "🌍 Runner location: $(curl -s ifconfig.me 2>/dev/null || echo 'unknown')"
-          echo "🏭 Runner name: ${{ runner.name }}"
-          echo "🆔 Runner OS: ${{ runner.os }}"
-          echo "🎯 Target hub: ${{ github.event.inputs.hub_host || '155.212.133.195' }}:${{ github.event.inputs.hub_port || '9908' }}"
-
-      - name: 🔄 Тест 1 — TCP PING
-        id: ping_test
-        run: |
-          HUB_HOST="${{ github.event.inputs.hub_host || '155.212.133.195' }}"
-          HUB_PORT="${{ github.event.inputs.hub_port || '9908' }}"
-          echo "Pinging $HUB_HOST:$HUB_PORT..."
-          python3 mesh_ping.py --peer "$HUB_HOST:$HUB_PORT" 2>&1 || echo "PING_FAILED=true" >> $GITHUB_ENV
-
-      - name: 🧪 Тест 2 — Test Suite
-        id: suite_test
-        if: ${{ github.event.inputs.test_type == 'full' || github.event.inputs.test_type == '' }}
-        run: |
-          HUB_HOST="${{ github.event.inputs.hub_host || '155.212.133.195' }}"
-          HUB_PORT="${{ github.event.inputs.hub_port || '9908' }}"
-          python3 test_suite.py --hub "$HUB_HOST:$HUB_PORT" --skip-uptime 2>&1
-
-      - name: 🧪 Тест 3 — Нагрузка (быстрый)
-        if: ${{ github.event.inputs.test_type == 'load' }}
-        run: |
-          HUB_HOST="${{ github.event.inputs.hub_host || '155.212.133.195' }}"
-          HUB_PORT="${{ github.event.inputs.hub_port || '9908' }}"
-          python3 test_suite.py --hub "$HUB_HOST:$HUB_PORT" --test load
-
-      - name: 🔄 Полное подключение (Simple Agent)
-        id: agent_test
-        run: |
-          HUB_HOST="${{ github.event.inputs.hub_host || '155.212.133.195' }}"
-          HUB_PORT="${{ github.event.inputs.hub_port || '9908' }}"
-          echo "🔄 Подключаюсь к $HUB_HOST:$HUB_PORT как GitHub Runner..."
-          timeout 30 python3 simple_agent.py \
-            --name "github-actions-${{ github.run_id }}" \
-            --peer "$HUB_HOST:$HUB_PORT" \
-            --test 2>&1 || true
-
-      - name: 📊 Сбор proof-кода
-        id: proof
-        run: |
-          PROOF_FILE=$(ls *.proof 2>/dev/null | head -1)
-          if [ -n "$PROOF_FILE" ]; then
-            echo "📄 Найден proof-файл: $PROOF_FILE"
-            cat "$PROOF_FILE"
-            echo "proof_code=$(head -2 $PROOF_FILE | tail -1 | cut -d' ' -f2)" >> $GITHUB_OUTPUT
-            echo "proof_file=$PROOF_FILE" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ Proof-файл не найден"
-            echo "proof_code=none" >> $GITHUB_OUTPUT
-          fi
-
-      - name: 📎 Сохранение proof-кода
-        uses: actions/upload-artifact@v4
-        with:
-          name: proof-code-${{ steps.proof.outputs.proof_code || github.run_id }}
-          path: "*.proof"
-          retention-days: 90
-
-      - name: 📋 Итоговый отчёт
-        run: |
-          echo "╔══════════════════════════════════════╗"
-          echo "║     Mesh Test — Результаты           ║"
-          echo "╠══════════════════════════════════════╣"
-          echo "║ Дата: $(date -u '+%Y-%m-%d %H:%M UTC')"
-          echo "║ Раннер: ${{ runner.name }}"
-          echo "║ Workflow: ${{ github.run_id }}"
-          echo "║ Proof: ${{ steps.proof.outputs.proof_code || '—' }}"
-          echo "╚══════════════════════════════════════╝"
+          python3 agent_light.py --name "gh-runner" --test --peer ${{ inputs.peer_host }}
