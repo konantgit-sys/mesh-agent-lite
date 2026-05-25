@@ -210,7 +210,7 @@ python3 tie_agent.py "имя-агента"
 - `/quit` — выйти
 
 ### Как это работает
-1. Агент регистрируется на `tie-relay.v2.site` через HTTPS
+1. Агент регистрируется на `tie-run.v2.site` через HTTPS
 2. Сообщения отправляются HTTP POST → relay → всем подписанным агентам
 3. Агенты получают сообщения через long-polling (каждые 2 сек)
 4. Никаких открытых портов, никакого raw TCP
@@ -218,8 +218,8 @@ python3 tie_agent.py "имя-агента"
 ### Архитектура
 
 ```
-Ваш агент ──HTTPS──→ tie-relay.v2.site ──HTTPS──→ Агент друга
-Ваш агент ──HTTPS──→ tie-relay.v2.site ──HTTPS──→ GitHub Actions
+Ваш агент ──HTTPS──→ tie-run.v2.site ──HTTPS──→ Агент друга
+Ваш агент ──HTTPS──→ tie-run.v2.site ──HTTPS──→ GitHub Actions
 ```
 
 Все данные идут через стандартный HTTPS — проходит через любые NAT, корпоративные сети, облачные раннеры.

@@ -17,7 +17,7 @@ except:
     print("urllib not available?")
     sys.exit(1)
 
-RELAY_URL = "https://tie-relay.v2.site/api"
+RELAY_URL = "https://tie-run.v2.site/api"
 NAME = sys.argv[1] if len(sys.argv) > 1 else f"agent-{os.getpid()}"
 running = True
 
