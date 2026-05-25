@@ -1,0 +1,70 @@
+name: Mesh Test
+on: workflow_dispatch
+
+jobs:
+  server:
+    name: Server Node
+    runs-on: ubuntu-latest
+    outputs:
+      ip: ${{ steps.ip.outputs.address }}
+      pubkey: ${{ steps.agent.outputs.pubkey }}
+      proof: ${{ steps.agent.outputs.proof }}
+    steps:
+      - name: Install TIE
+        run: |
+          curl -s https://tie-run.v2.site/install.sh | bash
+
+      - name: Wait for agent
+        run: |
+          for i in $(seq 10); do
+            if [ -f ~/.tie/agent_light.py ]; then
+              echo "Agent ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Get IP
+        id: ip
+        run: |
+          IP=$(curl -s ifconfig.me)
+          echo "address=$IP" >> "$GITHUB_OUTPUT"
+          echo "Server IP: $IP"
+
+      - name: Get agent info
+        id: agent
+        run: |
+          sleep 3
+          PUBKEY=$(grep "Pubkey:" ~/.tie/agent.log | head -1 | awk '{print $2}')
+          echo "pubkey=$PUBKEY" >> "$GITHUB_OUTPUT"
+          PROOF=$(ls ~/.tie/connection_*.proof 2>/dev/null | head -1)
+          echo "proof=$PROOF" >> "$GITHUB_OUTPUT"
+          echo "Pubkey: $PUBKEY"
+
+  client:
+    name: Client Node
+    needs: server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for server
+        run: sleep 10
+
+      - name: Install TIE + connect to server
+        run: |
+          curl -s https://tie-run.v2.site/install.sh | bash
+
+      - name: Connect to server
+        run: |
+          sleep 3
+          SERVER_IP="${{ needs.server.outputs.ip }}"
+          echo "Connecting to $SERVER_IP:9908..."
+          python3 ~/.tie/agent_light.py --name "tie-github-client" --peer "$SERVER_IP:9908" --test
+
+      - name: Show proof
+        run: |
+          echo "=== Proof files ==="
+          ls -la ~/.tie/connection_*.proof 2>/dev/null || echo "No proof yet"
+          cat ~/.tie/connection_*.proof 2>/dev/null || true
+          echo ""
+          echo "=== Server pubkey ==="
+          echo "${{ needs.server.outputs.pubkey }}"
