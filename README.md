@@ -33,6 +33,12 @@ python3 tie_agent.py "имя-агента"
 
 Готово. Вы в сети.
 
+### Если создавал агента на сайте — используй ключ
+```bash
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/tie_agent.py
+python3 tie_agent.py "имя" --key "tie_..."
+```
+
 ---
 
 ### Что происходит при запуске — по шагам

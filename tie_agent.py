@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-TIE Agent — HTTP mesh client for TIE Relay.
-Connects via HTTPS to tie-relay.v2.site (no raw TCP needed).
-"""
+TIE Agent v2 — HTTP mesh client for TIE Relay.
+Connects via HTTPS to tie-run.v2.site (no open ports needed).
 
-import json
-import time
-import threading
-import sys
-import os
+Usage:
+    python3 tie_agent.py "имя"
+    python3 tie_agent.py "имя" --key "tie_..."
+"""
+import json, time, threading, sys, os
 
 try:
     import urllib.request
@@ -18,18 +17,31 @@ except:
     sys.exit(1)
 
 RELAY_URL = "https://tie-run.v2.site/api"
-NAME = sys.argv[1] if len(sys.argv) > 1 else f"agent-{os.getpid()}"
+
+# ── Parse args ────────────────────────────────────────────────────
+NAME = "agent"
+KEY = None
+for i, a in enumerate(sys.argv[1:], 1):
+    if a == "--key" and i < len(sys.argv):
+        KEY = sys.argv[i+1]
+    elif a == "--name" and i < len(sys.argv):
+        NAME = sys.argv[i+1]
+
+if not NAME or NAME == "agent":
+    for a in sys.argv[1:]:
+        if not a.startswith("--"):
+            NAME = a
+            break
+if NAME == "agent":
+    NAME = f"agent-{os.getpid()}"
 running = True
 
 def api_post(endpoint, data):
-    """Send POST to relay."""
     body = json.dumps(data).encode()
     try:
         req = urllib.request.Request(
-            f"{RELAY_URL}/{endpoint}",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST"
+            f"{RELAY_URL}/{endpoint}", data=body,
+            headers={"Content-Type": "application/json"}, method="POST"
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode())
@@ -37,7 +49,6 @@ def api_post(endpoint, data):
         return {"ok": False, "error": str(e)}
 
 def api_get(endpoint):
-    """Send GET to relay."""
     try:
         req = urllib.request.Request(f"{RELAY_URL}/{endpoint}")
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -46,14 +57,14 @@ def api_get(endpoint):
         return {"ok": False, "error": str(e)}
 
 def poll_loop():
-    """Continuously poll for messages."""
     global running
     while running:
-        # Register + get messages
-        result = api_post("register", {"name": NAME})
+        data = {"name": NAME}
+        if KEY:
+            data["key"] = KEY
+        result = api_post("register", data)
         if result.get("ok"):
-            msgs = result.get("messages", [])
-            for msg in msgs:
+            for msg in result.get("messages", []):
                 sender = msg.get("from", "?")
                 text = msg.get("text", "")
                 if sender != "system":
@@ -63,7 +74,6 @@ def poll_loop():
         time.sleep(2)
 
 def send_message(text):
-    """Send a message to all agents."""
     result = api_post("send", {"from": NAME, "text": text, "to": "*"})
     if result.get("ok"):
         print(f"✓ Sent: {text}")
@@ -72,27 +82,29 @@ def send_message(text):
 
 def main():
     global running
-    
+    key_display = KEY[:20]+"..." if KEY else "no key"
     print(f"""
   ╔══════════════════════════════╗
   ║     TIE Agent — {NAME:<16} ║
-  ║     relay: tie-relay.v2.site ║
+  ║     relay: tie-run.v2.site   ║
+  ║     key: {key_display:<22}║
   ╚══════════════════════════════╝
     """)
     
-    # Register
-    result = api_post("register", {"name": NAME})
+    data = {"name": NAME}
+    if KEY:
+        data["key"] = KEY
+    result = api_post("register", data)
     if result.get("ok"):
         print(f"✅ Connected to TIE Relay as '{NAME}'")
     else:
         print(f"❌ Registration failed: {result.get('error')}")
         return
     
-    # Start poller
     poller = threading.Thread(target=poll_loop, daemon=True)
     poller.start()
     
-    print("\nCommands: /msg <text>  |  /peers  |  /quit")
+    print("\nCommands: /peers  |  /quit")
     print("Type a message and press Enter\n")
     
     try:
@@ -102,7 +114,6 @@ def main():
                 continue
             if cmd == "/quit":
                 running = False
-                print("Goodbye!")
                 break
             elif cmd == "/peers":
                 status = api_get("status")
@@ -114,8 +125,9 @@ def main():
             else:
                 send_message(cmd)
     except (EOFError, KeyboardInterrupt):
-        running = False
-        print("\nGoodbye!")
+        pass
+    running = False
+    print("\nGoodbye!")
 
 if __name__ == "__main__":
     main()
