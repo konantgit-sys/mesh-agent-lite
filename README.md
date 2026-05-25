@@ -14,212 +14,198 @@
 
 **Zero-dependency P2P mesh agent.** One file. One command. Connected.
 
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue)](#)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](#)
+[![No deps](https://img.shields.io/badge/deps-0-orange)](#)
+
+---
+
+## 🚀 TIE Agent v2 — HTTP Relay (рекомендуемый способ)
+
+> Работает везде: домашний ПК, VPS, GitHub Actions, Colab, corporate proxy.
+> Вся связь через HTTPS — никаких открытых портов не нужно.
+
+### Одна команда
 ```bash
-# Server A (wait for connections)
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/tie_agent.py
+python3 tie_agent.py "имя-агента"
+```
+
+Готово. Вы в сети.
+
+---
+
+### Что происходит при запуске — по шагам
+
+```
+Шаг 1: Загрузка
+       tie_agent.py скачивается с GitHub (8 KB)
+
+Шаг 2: Регистрация на Relay
+       → POST https://tie-run.v2.site/api/register
+       → {"name": "имя-агента"}
+       ← {"ok": true, "messages": [...], "new": true}
+       
+       Relay запоминает агента. Если сообщения уже были — 
+       они приходят сразу.
+
+Шаг 3: Фоновый опрос (каждые 2 секунды)
+       → POST https://tie-run.v2.site/api/register (с тем же именем)
+       ← {"ok": true, "messages": [...]}
+       
+       Если другой агент отправил сообщение — оно приходит 
+       в этом ответе. Реальное время доставки: 1-3 секунды.
+
+Шаг 4: Отправка сообщения
+       → POST https://tie-run.v2.site/api/send_agent
+       → {"from": "имя-агента", "text": "Привет!", "to": "*"}
+       ← {"ok": true, "sent": true}
+       
+       Сообщение попадает в очередь всем остальным агентам.
+       Они получат его при следующем опросе (через 1-2 сек).
+
+Шаг 5: Heartbeat
+       Каждый POST /api/register обновляет last_seen.
+       Если агент не отвечает >60 секунд — он считается 
+       офлайн и удаляется из списка.
+```
+
+### Что видит пользователь
+
+```
+  ╔══════════════════════════════╗
+  ║     TIE Agent — antonio      ║
+  ║     relay: tie-run.v2.site   ║
+  ╚══════════════════════════════╝
+
+✅ Connected to TIE Relay as 'antonio'
+
+> /peers
+📡 Online agents (3):
+  · v2bot
+  · friend
+  · relay-bot
+
+> Всем привет!
+✓ Sent: Всем привет!
+
+📨 [friend] И тебе привет!
+```
+
+### Команды внутри агента
+| Команда | Что делает |
+|---------|-----------|
+| `/peers` | Показывает кто онлайн |
+| `/msg текст` | Альтернативный способ отправки |
+| `/quit` | Выход |
+
+Любой текст без `/` в начале = сообщение всем.
+
+### Web-дашборд
+Все сообщения и агенты видны в реальном времени:
+**https://tie-run.v2.site** — вкладка "Чат"
+
+---
+
+## 🔧 Классический TCP-режим (agent_light.py)
+
+Для прямого P2P соединения между серверами (без relay).
+
+### Быстрый старт
+
+```bash
+# Сервер A
 python3 agent_light.py --name "node-a"
 
-# Server B — connects to A
+# Сервер B — подключается к A
 python3 agent_light.py --name "node-b" --peer 192.168.1.10:9908
 ```
 
-### 🔗 Connect to TIE Hub (public relay)
-
+### Подключение к публичному TIE Hub
 ```bash
 python3 agent_light.py --name "your-name" --peer 155.212.133.195:9908
 ```
 
-TIE Hub runs 24/7 on public IP `155.212.133.195:9908`. Connect any time — your agent registers automatically with the mesh network.
-
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue)](#)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](#)
-[![No deps](https://img.shields.io/badge/deps-0-orange)](#)
-[![TCP only](https://img.shields.io/badge/protocol-TCP-lightgrey)](#)
-
 ---
 
-## Quick Start (10 seconds)
-
-### 1. Download
-```bash
-wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/agent_light.py
-```
-
-### 2. Run on Server A
-```bash
-python3 agent_light.py --name "my-node"
-```
-Agent starts listening on port `9908` (TCP).
-
-### 3. Run on Server B — connects to A
-```bash
-python3 agent_light.py --name "peer-node" --peer 192.168.1.10:9908
-```
-
-**Done.** Agents exchange HELLO, measure ping, generate proof codes.
-
----
-
-## What You Get
+## 📡 Что даёт подключение
 
 ### 🔐 Proof Code
-On first contact, each agent generates a unique proof:
+При первом контакте каждый агент генерирует уникальный proof:
 ```
 connection_a7f3-b2c8-91e4.proof
 ```
-This code proves you ran a mesh agent. Save it — it activates your spot when the platform launches.
+Этот код доказывает, что вы запустили mesh-агента. Сохраните его — он активирует ваше место при запуске платформы.
 
-### 📡 Registration
-Agents auto-register with the mesh network. Your proof code is logged on the network dashboard.
-
-### 📊 Status Every 60s
+### 📊 Статус каждые 60с
 ```
 [12:34:56] ❤️  uptime=300s peers=3 avg_lat=12.3ms
 ```
 
 ---
 
-## Commands
+## 🐳 Docker
 
 ```bash
-# Basic — listen only
-python3 agent_light.py --name "node-a"
+docker run --rm -it \
+  -e NAME=my-agent \
+  konant/agent-light:latest
+```
 
-# Connect to TIE Hub (public)
-python3 agent_light.py --name "your-name" --peer 155.212.133.195:9908
-
-# Connect to any peer
-python3 agent_light.py --name "node-b" --peer 1.2.3.4:9908
-
-# Connect to multiple peers
-python3 agent_light.py --name "node-c" --peer 1.2.3.4:9908 --peer 5.6.7.8:9908
-
-# Quick test (auto-exit after connect + ping)
-python3 agent_light.py --test --peer 155.212.133.195:9908
-
-# Custom port
-python3 agent_light.py --port 7777 --peer 1.2.3.4:7777
+Сборка образа:
+```bash
+docker build -t konant/agent-light:latest .
 ```
 
 ---
 
-## Docker
+## 🧪 Тестирование
 
 ```bash
-# Build
-docker build -t mesh-agent .
+# Терминал 1
+python3 tie_agent.py "alice"
 
-# Run
-docker run --rm -p 9908:9908 mesh-agent --name "docker-node"
-
-# With peer
-docker run --rm -p 9908:9908 mesh-agent --name "node-2" --peer 155.212.133.195:9908
+# Терминал 2
+python3 tie_agent.py "bob"
 ```
 
-Built on `python:3.11-slim`. Zero Python dependencies.
+В терминале alice пишем: `Привет, боб!`
+В терминале bob через 1-3 секунды приходит: `📨 [alice] Привет, боб!`
 
 ---
 
-## How It Works
+## 📁 Файлы
 
-```
-┌──────────────┐         TCP          ┌──────────────┐
-│  Mesh Agent  │◄────────────────────►│  Mesh Agent  │
-│  :9908       │      HELLO/PING      │  :9908       │
-└──────────────┘                      └──────────────┘
-```
-
-Agents communicate directly over **TCP**. No hub, no cloud, no relay.
-
-**Message types:**
-| Type | Purpose |
-|------|---------|
-| 🤝 HELLO | Peer discovery + proof exchange |
-| 📡 PING / PONG | Latency measurement |
-| 💬 GOSSIP | Custom data relay |
-| 👋 GOODBYE | Disconnect notification |
+| Файл | Назначение |
+|------|-----------|
+| `tie_agent.py` | **Рекомендуемый** — HTTP relay агент (8 KB, без зависимостей) |
+| `agent_light.py` | TCP P2P агент для прямых соединений |
+| `Dockerfile` | Контейнер для agent_light.py |
+| `.github/workflows/` | CI тесты на GitHub Actions |
 
 ---
 
-## Requirements
+## 🌐 Архитектура
 
-- Python 3.8+
-- Nothing else
+```
+┌─────────────┐     HTTPS      ┌──────────────────┐     HTTPS      ┌─────────────┐
+│  Ваш агент   │ ──────────▶   │  tie-run.v2.site  │ ◀──────────   │  Агент друга │
+│  (любой ПК)  │               │   (HTTP Relay)    │               │  (любой ПК)  │
+└─────────────┘               └──────────────────┘               └─────────────┘
+                                      │
+                                      │ TCP (внутренний)
+                                      ▼
+                              ┌─────────────────┐
+                              │  TIE Mesh Network│
+                              │ (31 mesh-service)│
+                              └─────────────────┘
+```
+
+**TIE Agent v2** — агент общается с relay через обычный HTTPS.  
+Relay внутри подключён к полной mesh-сети TIE (31 сервис: Nostr Bridge, DAO, Privacy, ZK, Payment и др.).
 
 ---
 
-## Proof of First Contact
+## 📜 Лицензия
 
-Every first connection generates a `.proof` file with a unique code:
-
-```
-═══════════════════════════════════════════
-  MESH AGENT — PROOF OF FIRST CONTACT
-═══════════════════════════════════════════
-Code: a7f3-b2c8-91e4
-File: connection_a7f3-b2c8-91e4.proof
-Time: 2026-05-24 17:00:00 UTC
-───────────────────────────────────────────
-This code proves you ran a mesh agent.
-Keep it. It activates your NFT on launch.
-───────────────────────────────────────────
-Keep your code safe. Activation coming soon.
-═══════════════════════════════════════════
-```
-
-**Save this file.** When the platform launches, each activation code claims your spot in the network.
-
----
-
-## Files
-
-| File | Lines | What |
-|------|-------|------|
-| `agent_light.py` | 430 | Main agent — one file, zero deps |
-| `Dockerfile` | 16 | Container image |
-| `README.md` | — | This file |
-
----
-
-## License
-
-MIT. Do whatever you want.
-
----
-
-**The network is not the technology. The network is the people who ran the agent.**
-
-**May 2026. Mesh Network. Day one.**
-
----
-
-## 🌐 TIE Relay — HTTP Mesh (рекомендуемый способ)
-
-> ⚠️ Raw TCP может не работать на некоторых хостингах.  
-> Используйте **TIE Relay** — работает везде, где есть HTTPS.
-
-### Установка
-
-```bash
-wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/tie_agent.py
-python3 tie_agent.py "имя-агента"
-```
-
-### Команды
-- `Привет!` — отправляет сообщение всем агентам в сети
-- `/peers` — показать онлайн-агентов
-- `/quit` — выйти
-
-### Как это работает
-1. Агент регистрируется на `tie-run.v2.site` через HTTPS
-2. Сообщения отправляются HTTP POST → relay → всем подписанным агентам
-3. Агенты получают сообщения через long-polling (каждые 2 сек)
-4. Никаких открытых портов, никакого raw TCP
-
-### Архитектура
-
-```
-Ваш агент ──HTTPS──→ tie-run.v2.site ──HTTPS──→ Агент друга
-Ваш агент ──HTTPS──→ tie-run.v2.site ──HTTPS──→ GitHub Actions
-```
-
-Все данные идут через стандартный HTTPS — проходит через любые NAT, корпоративные сети, облачные раннеры.
+MIT
