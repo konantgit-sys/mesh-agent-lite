@@ -15,12 +15,20 @@
 **Zero-dependency P2P mesh agent.** One file. One command. Connected.
 
 ```bash
-# Server A
+# Server A (wait for connections)
 python3 agent_light.py --name "node-a"
 
 # Server B — connects to A
 python3 agent_light.py --name "node-b" --peer 192.168.1.10:9908
 ```
+
+### 🔗 Connect to TIE Hub (public relay)
+
+```bash
+python3 agent_light.py --name "your-name" --peer 155.212.133.195:9908
+```
+
+TIE Hub runs 24/7 on public IP `155.212.133.195:9908`. Connect any time — your agent registers automatically with the mesh network.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue)](#)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](#)
@@ -76,14 +84,17 @@ Agents auto-register with the mesh network. Your proof code is logged on the net
 # Basic — listen only
 python3 agent_light.py --name "node-a"
 
-# Connect to a peer
+# Connect to TIE Hub (public)
+python3 agent_light.py --name "your-name" --peer 155.212.133.195:9908
+
+# Connect to any peer
 python3 agent_light.py --name "node-b" --peer 1.2.3.4:9908
 
 # Connect to multiple peers
 python3 agent_light.py --name "node-c" --peer 1.2.3.4:9908 --peer 5.6.7.8:9908
 
 # Quick test (auto-exit after connect + ping)
-python3 agent_light.py --test --peer 1.2.3.4:9908
+python3 agent_light.py --test --peer 155.212.133.195:9908
 
 # Custom port
 python3 agent_light.py --port 7777 --peer 1.2.3.4:7777
@@ -101,7 +112,7 @@ docker build -t mesh-agent .
 docker run --rm -p 9908:9908 mesh-agent --name "docker-node"
 
 # With peer
-docker run --rm -p 9908:9908 mesh-agent --name "node-2" --peer 1.2.3.4:9908
+docker run --rm -p 9908:9908 mesh-agent --name "node-2" --peer 155.212.133.195:9908
 ```
 
 Built on `python:3.11-slim`. Zero Python dependencies.
