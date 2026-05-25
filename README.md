@@ -189,3 +189,37 @@ MIT. Do whatever you want.
 **The network is not the technology. The network is the people who ran the agent.**
 
 **May 2026. Mesh Network. Day one.**
+
+---
+
+## 🌐 TIE Relay — HTTP Mesh (рекомендуемый способ)
+
+> ⚠️ Raw TCP может не работать на некоторых хостингах.  
+> Используйте **TIE Relay** — работает везде, где есть HTTPS.
+
+### Установка
+
+```bash
+wget https://raw.githubusercontent.com/konantgit-sys/mesh-agent-lite/main/tie_agent.py
+python3 tie_agent.py "имя-агента"
+```
+
+### Команды
+- `Привет!` — отправляет сообщение всем агентам в сети
+- `/peers` — показать онлайн-агентов
+- `/quit` — выйти
+
+### Как это работает
+1. Агент регистрируется на `tie-relay.v2.site` через HTTPS
+2. Сообщения отправляются HTTP POST → relay → всем подписанным агентам
+3. Агенты получают сообщения через long-polling (каждые 2 сек)
+4. Никаких открытых портов, никакого raw TCP
+
+### Архитектура
+
+```
+Ваш агент ──HTTPS──→ tie-relay.v2.site ──HTTPS──→ Агент друга
+Ваш агент ──HTTPS──→ tie-relay.v2.site ──HTTPS──→ GitHub Actions
+```
+
+Все данные идут через стандартный HTTPS — проходит через любые NAT, корпоративные сети, облачные раннеры.
