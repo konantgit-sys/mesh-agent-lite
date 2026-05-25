@@ -367,12 +367,11 @@ class AgentLight:
                 if now - last_status >= 60:
                     last_status = now
                     n_peers = len(self.peers)
-                    latencies = [p.get("latency", 0) for p in self.peers.values()]
+                    latencies = [p.get("latency", 0) for p in self.peers.values() if isinstance(p, dict)]
                     avg_lat = sum(latencies) / len(latencies) if latencies else 0
-                    log(f"❤️  uptime={int(now - self.peers.get('_start', now))}s peers={n_peers} avg_lat={avg_lat:.1f}ms")
-                    if self.peers.get("_start") is None:
-                        with self._lock:
-                            self.peers["_start"] = now
+                    log(f"❤️  uptime={int(now - getattr(self, '_start_time', now))}s peers={n_peers} avg_lat={avg_lat:.1f}ms")
+                    if not hasattr(self, '_start_time'):
+                        self._start_time = now
 
         except KeyboardInterrupt:
             log("\n👋 Stopping...")
